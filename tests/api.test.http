@@ -1,0 +1,67 @@
+### KampusCare Backend API Test Collection (VS Code REST Client)
+@baseUrl = http://localhost:3000
+
+### 1. Health Check (T02)
+GET {{baseUrl}}/api/health
+
+### 2. Login Berhasil (T03)
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mahasiswa@kampuscare.ac.id",
+  "password": "password123"
+}
+
+### Ambil token dari respons login di atas
+@authToken = {{login.response.body.token}}
+
+### 3. Login Gagal - Email Salah (T04)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "salah@kampuscare.ac.id",
+  "password": "password123"
+}
+
+### 4. Login Gagal - Password Salah (T05)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mahasiswa@kampuscare.ac.id",
+  "password": "passwordsalah"
+}
+
+### 5. Login Gagal - Body Kosong (T06)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{}
+
+### 6. GET Rooms - Token Valid (T07, T13, T14)
+GET {{baseUrl}}/api/rooms
+Authorization: Bearer {{authToken}}
+
+### 7. GET Rooms - Tanpa Header Authorization (T08)
+GET {{baseUrl}}/api/rooms
+
+### 8. GET Rooms - Token Invalid / Random (T09)
+GET {{baseUrl}}/api/rooms
+Authorization: Bearer token_acak_yang_tidak_valid_12345
+
+### 9. GET Current User / Me - Token Valid (T11, T17)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{authToken}}
+
+### 10. GET Current User / Me - Tanpa Token
+GET {{baseUrl}}/api/auth/me
+
+### 11. Logout - Token Valid (T12)
+POST {{baseUrl}}/api/auth/logout
+Authorization: Bearer {{authToken}}
+
+### 12. Logout - Tanpa Token
+POST {{baseUrl}}/api/auth/logout
