@@ -65,3 +65,7 @@ Authorization: Bearer {{authToken}}
 
 ### 12. Logout - Tanpa Token
 POST {{baseUrl}}/api/auth/logout
+
+### 13. GET Rooms - Token yang Sama Setelah Logout Harus Ditolak
+GET {{baseUrl}}/api/rooms
+Authorization: Bearer {{authToken}}

@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { findUserByEmail } = require('../data/users');
 const { generateToken } = require('../utils/token');
+const { addToBlacklist } = require('../data/blacklist');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
@@ -57,10 +58,17 @@ router.get('/me', authMiddleware, (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', authMiddleware, (req, res) => {
-  return res.status(200).json({
-    message: 'Logout berhasil',
-  });
+router.post('/logout', authMiddleware, async (req, res) => {
+  try {
+    await addToBlacklist(req.user.jti, req.tokenExp);
+    return res.status(200).json({
+      message: 'Logout berhasil',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Terjadi kesalahan saat memproses logout',
+    });
+  }
 });
 
 module.exports = router;

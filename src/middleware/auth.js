@@ -1,6 +1,7 @@
 const { verifyToken } = require('../utils/token');
+const { isBlacklisted } = require('../data/blacklist');
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -18,10 +19,10 @@ function authMiddleware(req, res, next) {
 
   const token = parts[1].trim();
 
+  // 1. Panggil verifyToken DULU
+  let decoded;
   try {
-    const decoded = verifyToken(token);
-    req.user = decoded;
-    next();
+    decoded = verifyToken(token);
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
@@ -31,6 +32,27 @@ function authMiddleware(req, res, next) {
 
     return res.status(401).json({
       error: 'Token tidak valid',
+    });
+  }
+
+  // 2. Baru cek isBlacklisted(decoded.jti)
+  try {
+    const blacklisted = await isBlacklisted(decoded.jti);
+    if (blacklisted) {
+      return res.status(401).json({
+        error: 'Token tidak valid',
+      });
+    }
+
+    // 3. Set req.user, req.token, dan req.tokenExp = decoded.exp
+    req.user = decoded;
+    req.token = token;
+    req.tokenExp = decoded.exp;
+    next();
+  } catch (err) {
+    // 8. Jika Redis tidak tersedia saat cek blacklist, kembalikan 503 (fail closed)
+    return res.status(503).json({
+      error: 'Layanan autentikasi sementara tidak tersedia',
     });
   }
 }
