@@ -46,13 +46,37 @@ cp .env.example .env
 
 _(Di Windows PowerShell: `Copy-Item .env.example .env`)_
 
-Isi file `.env`:
+#### Generate `JWT_SECRET` Sendiri
+
+Buka terminal di folder backend `kampus-care-backend`, lalu jalankan perintah berikut untuk membuat secret acak yang kuat (32 bytes / 64 karakter hex):
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Salin hasil output string tersebut ke dalam file `.env`:
 
 ```env
 PORT=3000
-JWT_SECRET=c8f74a9e2d1b5e3f8a0c4e7d2b9a1f5e8c3b7a1d5e9f2a4b8c0d3e7f1a5b9c2d
+JWT_SECRET=hasil_secret_yang_dihasilkan
 JWT_EXPIRES_IN=1h
+REDIS_URL=redis://localhost:6379
 ```
+
+#### Penjelasan Environment Variables
+
+| Variable | Wajib | Deskripsi | Default / Contoh |
+| :--- | :---: | :--- | :--- |
+| `PORT` | Tidak | Port listener server Express | `3000` |
+| `JWT_SECRET` | **Wajib** | Kunci rahasia untuk menandatangani (sign) dan memverifikasi token JWT | String acak dari perintah `crypto` di atas |
+| `JWT_EXPIRES_IN` | Tidak | Masa berlaku token JWT sebelum kedaluwarsa | `1h` (1 jam) atau `10s` untuk testing |
+| `REDIS_URL` | Opsional | URL koneksi ke Redis untuk token blacklist | `redis://localhost:6379` *(jika Redis offline, otomatis fallback ke in-memory)* |
+
+> [!WARNING]
+> **Peringatan Keamanan Penting**:
+> - **Wajib generate secret sendiri**: Jangan pernah menggunakan nilai contoh atau placeholder sebagai secret di environment sebenarnya.
+> - **Jangan commit `.env` ke GitHub/Git**: Pastikan file `.env` selalu tercantum dalam `.gitignore` agar kredensial dan secret tidak bocor ke publik.
+> - **Restart backend setelah mengubah konfigurasi**: Perubahan apa pun pada file `.env` memerlukan restart server agar konfigurasi baru terbaca dan diterapkan.
 
 ---
 
