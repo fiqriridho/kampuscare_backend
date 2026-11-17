@@ -11,7 +11,7 @@ Backend REST API untuk aplikasi **KampusCare** (aplikasi pelaporan fasilitas dan
 - **Stateless Session Management**: Client-side session management dengan endpoint konfirmasi logout.
 - **Data Ruangan Sesuai Kontrak**: Endpoint `/api/rooms` dengan struktur data identik dengan kontrak Beeceptor.
 - **Keamanan Password**: Password di-hash menggunakan algoritma `bcryptjs` (salt rounds 10).
-- **Data Dummy Privasi**: Profil user menggunakan data dummy fiktif untuk melindungi data pribadi asli.
+- **Seed Data Demo**: Akun demo dan 4 ruangan dimuat dari `db/schema_and_seed.sql` (password disimpan sebagai hash bcrypt).
 
 ---
 
@@ -80,6 +80,18 @@ REDIS_URL=redis://localhost:6379
 
 ---
 
+### 4. Siapkan Database (MySQL / Laragon)
+
+Jalankan dari folder `kampus-care-backend`:
+
+```bash
+mysql -u root -p < db/schema_and_seed.sql
+```
+
+Script ini bersifat **destruktif**: menghapus lalu membuat ulang tabel `users`, `classrooms`, `reports`, dan `report_history` di database `kampus_care`, lalu mengisi 1 akun demo + 4 ruangan.
+
+---
+
 ## ▶️ Menjalankan Server
 
 ### Mode Development (Auto-reload dengan Nodemon)
@@ -103,6 +115,7 @@ Server akan aktif di `http://localhost:3000`.
 | Method | Endpoint           | Auth          | Deskripsi                                                                |
 | ------ | ------------------ | ------------- | ------------------------------------------------------------------------ |
 | `GET`  | `/api/health`      | ❌ Publik     | Health check status server                                               |
+| `POST` | `/api/auth/register` | ❌ Publik   | Registrasi akun baru (nama, NIM, jurusan, email, password) → `201` + token JWT. Email/NIM duplikat → `409` |
 | `POST` | `/api/auth/login`  | ❌ Publik     | Login pengguna dengan email & password, mengembalikan token JWT & profil |
 | `GET`  | `/api/auth/me`     | ✅ Bearer JWT | Mendapatkan profil user yang sedang login                                |
 | `POST` | `/api/auth/logout` | ✅ Bearer JWT | Konfirmasi logout sisi server                                            |
@@ -116,8 +129,8 @@ Server akan aktif di `http://localhost:3000`.
 | ------------ | -------------------------------- |
 | **Email**    | `mahasiswa@kampuscare.ac.id`     |
 | **Password** | `password123`                    |
-| **Nama**     | Budi Santoso _(Data dummy)_      |
-| **NIM**      | `2024103701100XX` _(Data dummy)_ |
+| **Nama**     | Fiqri Ridho F _(seed)_           |
+| **NIM**      | `202410370110167` _(seed)_       |
 | **Jurusan**  | Teknik Informatika               |
 
 ---

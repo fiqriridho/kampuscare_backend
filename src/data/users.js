@@ -35,6 +35,36 @@ async function findUserByEmail(email) {
   };
 }
 
+async function emailOrNimExists(email, nim) {
+  const [rows] = await db.execute(
+    `SELECT id FROM users WHERE LOWER(email) = ? OR nim = ? LIMIT 1`,
+    [email, nim],
+  );
+
+  return rows.length > 0;
+}
+
+async function createUser({ name, nim, email, passwordHash, major, avatarUrl }) {
+  const [result] = await db.execute(
+    `INSERT INTO users (name, nim, email, password_hash, major, avatar_url)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [name, nim, email, passwordHash, major, avatarUrl],
+  );
+
+  return {
+    id: result.insertId,
+    profile: {
+      name,
+      nim,
+      major,
+      email,
+      avatar: avatarUrl,
+    },
+  };
+}
+
 module.exports = {
   findUserByEmail,
+  emailOrNimExists,
+  createUser,
 };

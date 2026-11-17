@@ -144,9 +144,16 @@ async function runTestSuite() {
     // T16: Token tidak bocor di endpoint publik health check
     assert(!JSON.stringify(dataHealth).includes("token"), "T16: Endpoint publik tidak mengekspos token");
 
-    // T17: Profil user menggunakan data dummy
-    const isDummyData = dataLogin.user.name === "Budi Santoso" && dataLogin.user.nim === "2024103701100XX" && dataLogin.user.avatar.includes("ui-avatars.com");
-    assert(isDummyData, "T17: Profil user menggunakan data dummy (Budi Santoso / 2024103701100XX / UI Avatars)", JSON.stringify(dataLogin.user));
+    // T17: Profil user lengkap dan sesuai seed demo
+    const { name, nim, major, email, avatar } = dataLogin.user;
+    const isSeedProfile =
+      name === "Fiqri Ridho F" &&
+      nim === "202410370110167" &&
+      major === "Teknik Informatika" &&
+      email === "mahasiswa@kampuscare.ac.id" &&
+      typeof avatar === "string" &&
+      avatar.length > 0;
+    assert(isSeedProfile, "T17: Profil user memuat data seed demo lengkap (nama, NIM, jurusan, email, avatar)", JSON.stringify(dataLogin.user));
 
     // T18: Token ditolak (401) setelah logout (Blacklist)
     // 1. Login dan simpan token baru

@@ -1,11 +1,77 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const { findUserByEmail } = require("../data/users");
+const { findUserByEmail, emailOrNimExists, createUser } = require("../data/users");
 const { generateToken } = require("../utils/token");
 const { addToBlacklist } = require("../data/blacklist");
 const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
+
+// POST /api/auth/register
+router.post("/register", async (req, res) => {
+  const { name, nim, major, email, password } = req.body || {};
+
+  if (
+    [name, nim, major, email, password].some(
+      (value) => typeof value !== "string" || value.trim() === "",
+    )
+  ) {
+    return res.status(400).json({
+      error: "Nama, NIM, jurusan, email, dan password wajib diisi",
+    });
+  }
+
+  const data = {
+    name: name.trim(),
+    nim: nim.trim(),
+    major: major.trim(),
+    email: email.trim().toLowerCase(),
+    password: password.trim(),
+  };
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email) || data.email.length > 150) {
+    return res.status(400).json({ error: "Format email tidak valid" });
+  }
+
+  if (!/^\d{6,30}$/.test(data.nim)) {
+    return res.status(400).json({ error: "NIM harus berupa 6-30 digit angka" });
+  }
+
+  if (data.name.length > 100 || data.major.length > 100) {
+    return res.status(400).json({ error: "Nama dan jurusan maksimal 100 karakter" });
+  }
+
+  if (data.password.length < 6 || data.password.length > 72) {
+    return res.status(400).json({ error: "Password harus 6-72 karakter" });
+  }
+
+  try {
+    if (await emailOrNimExists(data.email, data.nim)) {
+      return res.status(409).json({ error: "Email atau NIM sudah terdaftar" });
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=0D8ABC&color=fff`;
+    const user = await createUser({ ...data, passwordHash, avatarUrl });
+    const token = generateToken({ userId: user.id, email: data.email });
+
+    return res.status(201).json({
+      message: "Registrasi berhasil",
+      token,
+      user: user.profile,
+    });
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ error: "Email atau NIM sudah terdaftar" });
+    }
+
+    console.error("Register error:", error.message);
+
+    return res.status(500).json({
+      error: "Terjadi kesalahan saat registrasi",
+    });
+  }
+});
 
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
