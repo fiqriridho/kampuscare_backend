@@ -3,11 +3,13 @@ const jwt = require('jsonwebtoken');
 const { JWT_SECRET, JWT_EXPIRES_IN } = require('../config/env');
 
 function generateToken(payload) {
+  const payloadWithRole = {
+    ...payload,
+    role: payload.role || 'mahasiswa',
+    jti: crypto.randomUUID(),
+  };
   return jwt.sign(
-    {
-      ...payload,
-      jti: crypto.randomUUID(),
-    },
+    payloadWithRole,
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );

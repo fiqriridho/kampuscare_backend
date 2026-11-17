@@ -187,6 +187,241 @@ async function runTestSuite() {
 
     // 5. Verifikasi apakah token ditolak (401)
     assert(resRoomsBeforeLogout.status === 200 && resLogoutT18.status === 200 && resRoomsAfterLogout.status === 401 && dataRoomsAfterLogout.error === "Token tidak valid", "T18: Token ditolak (401) setelah logout", `Status actual setelah logout: ${resRoomsAfterLogout.status} (diharapkan 401). Response: ${JSON.stringify(dataRoomsAfterLogout)}`);
+
+    // ========================================================================
+    // TEST SUITE REPORTS & TUGAS PERBAIKAN FASILITAS (R19 - R36)
+    // ========================================================================
+
+    // R19: GET /api/reports tanpa token -> 401
+    const resRepNoAuth = await fetch(`${baseUrl}/api/reports`);
+    assert(resRepNoAuth.status === 401, "R19: GET /api/reports tanpa token mengembalikan 401");
+
+    // Login Mahasiswa untuk token aktif baru
+    const resLogMhs = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "mahasiswa@kampuscare.ac.id", password: "password123" }),
+    });
+    const dataLogMhs = await resLogMhs.json();
+    const mhsToken = dataLogMhs.token;
+
+    // R20: Login Admin sukses + role === 'admin'
+    const resLogAdmin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "admin@kampuscare.ac.id", password: "admin123" }),
+    });
+    const dataLogAdmin = await resLogAdmin.json();
+    const adminToken = dataLogAdmin.token;
+    assert(
+      resLogAdmin.status === 200 && dataLogAdmin.user && dataLogAdmin.user.role === "admin",
+      "R20: POST /api/auth/login admin mengembalikan 200 dan role: admin",
+      JSON.stringify(dataLogAdmin)
+    );
+
+    // R21: POST /api/reports oleh Admin -> 403 Forbidden (Hanya mahasiswa yang boleh lapor)
+    const fdAdmin = new FormData();
+    fdAdmin.append("title", "Laporan Admin Coba Buat");
+    fdAdmin.append("description", "Ini deskripsi perbaikan yang dibuat admin");
+    const resPostAdmin = await fetch(`${baseUrl}/api/reports`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: fdAdmin,
+    });
+    assert(resPostAdmin.status === 403, "R21: POST /api/reports oleh Admin ditolak 403 Forbidden");
+
+    // R22: POST /api/reports oleh Mahasiswa tanpa body / data tidak lengkap -> 400
+    const fdEmpty = new FormData();
+    const resPostEmpty = await fetch(`${baseUrl}/api/reports`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${mhsToken}` },
+      body: fdEmpty,
+    });
+    assert(resPostEmpty.status === 400, "R22: POST /api/reports tanpa judul mengembalikan 400");
+
+    // R23: POST /api/reports deskripsi < 10 karakter -> 400
+    const fdShort = new FormData();
+    fdShort.append("title", "Proyektor Rusak");
+    fdShort.append("description", "pendek");
+    const resPostShort = await fetch(`${baseUrl}/api/reports`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${mhsToken}` },
+      body: fdShort,
+    });
+    assert(resPostShort.status === 400, "R23: POST /api/reports deskripsi < 10 karakter mengembalikan 400");
+
+    // R24: POST /api/reports valid oleh Mahasiswa dengan file foto -> 201 + status menunggu
+    const fdValid = new FormData();
+    fdValid.append("title", "AC Ruang 204 Mati Total");
+    fdValid.append("description", "Pendingin ruangan tidak menyala dan mengeluarkan dengungan");
+    fdValid.append("location_detail", "Gedung B Lt. 2");
+    const dummyImageBlob = new Blob(["fake-image-bytes-content"], { type: "image/jpeg" });
+    fdValid.append("photo", dummyImageBlob, "damage_test.jpg");
+
+    const resPostValid = await fetch(`${baseUrl}/api/reports`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${mhsToken}` },
+      body: fdValid,
+    });
+    const dataPostValid = await resPostValid.json();
+    const createdReportId = dataPostValid.data?.id;
+    assert(
+      resPostValid.status === 201 &&
+        dataPostValid.data &&
+        dataPostValid.data.status === "menunggu" &&
+        typeof dataPostValid.data.photo_url === "string",
+      "R24: POST /api/reports valid dengan foto mengembalikan 201 dan status: menunggu",
+      JSON.stringify(dataPostValid)
+    );
+
+    // R25: GET /api/reports oleh Mahasiswa -> 200 + hanya own reports
+    const resRepMhs = await fetch(`${baseUrl}/api/reports`, {
+      headers: { Authorization: `Bearer ${mhsToken}` },
+    });
+    const dataRepMhs = await resRepMhs.json();
+    assert(
+      resRepMhs.status === 200 &&
+        Array.isArray(dataRepMhs.data) &&
+        dataRepMhs.data.every((r) => r.user_id === dataLogMhs.user.id),
+      "R25: GET /api/reports oleh Mahasiswa hanya mengembalikan laporan milik sendiri"
+    );
+
+    // R26: GET /api/reports oleh Admin -> 200 + melihat semua laporan
+    const resRepAdmin = await fetch(`${baseUrl}/api/reports`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const dataRepAdmin = await resRepAdmin.json();
+    assert(
+      resRepAdmin.status === 200 &&
+        Array.isArray(dataRepAdmin.data) &&
+        dataRepAdmin.data.some((r) => r.id === createdReportId),
+      "R26: GET /api/reports oleh Admin dapat melihat seluruh laporan"
+    );
+
+    // R27: GET /api/reports?status=menunggu terfilter
+    const resRepFilter = await fetch(`${baseUrl}/api/reports?status=menunggu`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const dataRepFilter = await resRepFilter.json();
+    assert(
+      resRepFilter.status === 200 &&
+        dataRepFilter.data.every((r) => r.status === "menunggu"),
+      "R27: GET /api/reports?status=menunggu berhasil memfilter data berstatus menunggu"
+    );
+
+    // R28: PATCH /api/reports/:id oleh Mahasiswa -> 403 Forbidden
+    const resPatchMhs = await fetch(`${baseUrl}/api/reports/${createdReportId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${mhsToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "diproses" }),
+    });
+    assert(resPatchMhs.status === 403, "R28: PATCH /api/reports/:id oleh Mahasiswa ditolak 403");
+
+    // R29: PATCH /api/reports/:id transisi invalid ('selesai' langsung dari 'menunggu') -> 409 Conflict
+    const resPatchInvalid = await fetch(`${baseUrl}/api/reports/${createdReportId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "selesai" }),
+    });
+    assert(
+      resPatchInvalid.status === 409,
+      "R29: PATCH status langsung dari 'menunggu' ke 'selesai' ditolak 409 Conflict"
+    );
+
+    // R30: PATCH /api/reports/:id oleh Admin 'menunggu' -> 'diproses' -> 200
+    const resPatchDiproses = await fetch(`${baseUrl}/api/reports/${createdReportId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "diproses", note: "Teknisi sedang menuju lokasi" }),
+    });
+    const dataPatchDiproses = await resPatchDiproses.json();
+    assert(
+      resPatchDiproses.status === 200 && dataPatchDiproses.data?.status === "diproses",
+      "R30: PATCH status 'menunggu' -> 'diproses' oleh Admin berhasil (200)"
+    );
+
+    // R31: PATCH 'diproses' -> 'selesai' TANPA foto bukti -> 409 Conflict
+    const resPatchNoPhoto = await fetch(`${baseUrl}/api/reports/${createdReportId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "selesai" }),
+    });
+    assert(
+      resPatchNoPhoto.status === 409,
+      "R31: PATCH status ke 'selesai' tanpa foto bukti perbaikan ditolak 409 Conflict"
+    );
+
+    // R32: POST /api/reports/:id/evidence-photo oleh Mahasiswa -> 403 Forbidden
+    const fdEvMhs = new FormData();
+    fdEvMhs.append("photo", dummyImageBlob, "evidence_mhs.jpg");
+    const resEvMhs = await fetch(`${baseUrl}/api/reports/${createdReportId}/evidence-photo`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${mhsToken}` },
+      body: fdEvMhs,
+    });
+    assert(resEvMhs.status === 403, "R32: POST evidence-photo oleh Mahasiswa ditolak 403 Forbidden");
+
+    // R33: POST /api/reports/:id/evidence-photo oleh Admin -> 200 + evidence_photo_url
+    const fdEvAdmin = new FormData();
+    fdEvAdmin.append("photo", dummyImageBlob, "evidence_admin.jpg");
+    const resEvAdmin = await fetch(`${baseUrl}/api/reports/${createdReportId}/evidence-photo`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: fdEvAdmin,
+    });
+    const dataEvAdmin = await resEvAdmin.json();
+    assert(
+      resEvAdmin.status === 200 && typeof dataEvAdmin.evidence_photo_url === "string",
+      "R33: POST evidence-photo oleh Admin berhasil mengunggah foto bukti (200)"
+    );
+
+    // R34: PATCH 'diproses' -> 'selesai' SETELAH foto bukti tersedia -> 200
+    const resPatchSelesai = await fetch(`${baseUrl}/api/reports/${createdReportId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${adminToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "selesai", note: "AC telah diganti kompresor baru" }),
+    });
+    const dataPatchSelesai = await resPatchSelesai.json();
+    assert(
+      resPatchSelesai.status === 200 && dataPatchSelesai.data?.status === "selesai",
+      "R34: PATCH status 'diproses' -> 'selesai' setelah ada foto bukti berhasil (200)"
+    );
+
+    // R35: GET /api/reports/:id/history -> 200 + audit trail lengkap
+    const resHistory = await fetch(`${baseUrl}/api/reports/${createdReportId}/history`, {
+      headers: { Authorization: `Bearer ${mhsToken}` },
+    });
+    const dataHistory = await resHistory.json();
+    assert(
+      resHistory.status === 200 &&
+        Array.isArray(dataHistory.data) &&
+        dataHistory.data.length >= 3,
+      "R35: GET /api/reports/:id/history mengembalikan riwayat audit status lengkap (menunggu, diproses, selesai)"
+    );
+
+    // R36: GET /api/reports/:id/photo -> 200 stream gambar
+    const resGetPhoto = await fetch(`${baseUrl}/api/reports/${createdReportId}/photo`, {
+      headers: { Authorization: `Bearer ${mhsToken}` },
+    });
+    assert(
+      resGetPhoto.status === 200,
+      "R36: GET /api/reports/:id/photo dengan otorisasi mengembalikan 200 file stream"
+    );
   } catch (err) {
     console.error("Error saat menjalankan test:", err);
     failedCount++;

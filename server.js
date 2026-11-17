@@ -3,6 +3,7 @@ const cors = require('cors');
 const { PORT } = require('./src/config/env');
 const authRoutes = require('./src/routes/auth');
 const roomsRoutes = require('./src/routes/rooms');
+const reportsRoutes = require('./src/routes/reports');
 const authMiddleware = require('./src/middleware/auth');
 
 const app = express();
@@ -45,6 +46,9 @@ app.use('/api/auth', authRoutes);
 
 // Protected rooms route (GET /api/rooms)
 app.use('/api/rooms', authMiddleware, roomsRoutes);
+
+// Protected reports routes (/api/reports)
+app.use('/api/reports', reportsRoutes);
 
 // 404 handler
 app.use((req, res) => {

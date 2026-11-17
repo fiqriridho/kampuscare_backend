@@ -53,20 +53,25 @@ router.post("/register", async (req, res) => {
     const passwordHash = await bcrypt.hash(data.password, 10);
     const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=0D8ABC&color=fff`;
     const user = await createUser({ ...data, passwordHash, avatarUrl });
-    const token = generateToken({ userId: user.id, email: data.email });
+    const token = generateToken({
+      userId: user.id,
+      email: data.email,
+      role: user.profile.role,
+    });
 
     return res.status(201).json({
       message: "Registrasi berhasil",
       token,
-      user: user.profile,
+      user: {
+        ...user.profile,
+        role: user.profile.role,
+      },
     });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(409).json({ error: "Email atau NIM sudah terdaftar" });
     }
-
     console.error("Register error:", error.message);
-
     return res.status(500).json({
       error: "Terjadi kesalahan saat registrasi",
     });
@@ -103,6 +108,7 @@ router.post("/login", async (req, res) => {
     const token = generateToken({
       userId: user.id,
       email: user.email,
+      role: user.role,
     });
 
     return res.status(200).json({
@@ -112,7 +118,6 @@ router.post("/login", async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error.message);
-
     return res.status(500).json({
       error: "Terjadi kesalahan saat login",
     });
@@ -135,7 +140,6 @@ router.get("/me", authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error("Auth me error:", error.message);
-
     return res.status(500).json({
       error: "Terjadi kesalahan saat mengambil profil pengguna",
     });
@@ -146,15 +150,13 @@ router.get("/me", authMiddleware, async (req, res) => {
 router.post("/logout", authMiddleware, async (req, res) => {
   try {
     await addToBlacklist(req.user.jti, req.tokenExp);
-
     return res.status(200).json({
       message: "Logout berhasil",
     });
   } catch (error) {
     console.error("Logout error:", error.message);
-
     return res.status(500).json({
-      error: "Terjadi kesalahan saat memproses logout",
+      error: "Terjadi kesalahan saat logout",
     });
   }
 });

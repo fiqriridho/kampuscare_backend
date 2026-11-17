@@ -6,9 +6,8 @@ async function findUserByEmail(email) {
   }
 
   const normalized = email.trim().toLowerCase();
-
   const [rows] = await db.execute(
-    `SELECT id, name, nim, email, password_hash, major, avatar_url
+    `SELECT id, name, nim, email, password_hash, major, avatar_url, role
      FROM users
      WHERE LOWER(email) = ?
      LIMIT 1`,
@@ -25,12 +24,15 @@ async function findUserByEmail(email) {
     id: user.id,
     email: user.email,
     password_hash: user.password_hash,
+    role: user.role,
     profile: {
+      id: user.id,
       name: user.name,
       nim: user.nim,
       major: user.major,
       email: user.email,
       avatar: user.avatar_url,
+      role: user.role,
     },
   };
 }
@@ -46,8 +48,8 @@ async function emailOrNimExists(email, nim) {
 
 async function createUser({ name, nim, email, passwordHash, major, avatarUrl }) {
   const [result] = await db.execute(
-    `INSERT INTO users (name, nim, email, password_hash, major, avatar_url)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (name, nim, email, password_hash, major, avatar_url, role)
+     VALUES (?, ?, ?, ?, ?, ?, 'mahasiswa')`,
     [name, nim, email, passwordHash, major, avatarUrl],
   );
 
@@ -59,6 +61,7 @@ async function createUser({ name, nim, email, passwordHash, major, avatarUrl }) 
       major,
       email,
       avatar: avatarUrl,
+      role: 'mahasiswa',
     },
   };
 }

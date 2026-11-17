@@ -53,6 +53,8 @@ CREATE TABLE reports (
   description text,
   location_detail varchar(255) DEFAULT NULL,
   status enum('menunggu','diproses','selesai') NOT NULL DEFAULT 'menunggu',
+  photo_url varchar(500) DEFAULT NULL,
+  evidence_photo_url varchar(500) DEFAULT NULL,
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -79,8 +81,11 @@ CREATE TABLE report_history (
 
 INSERT INTO users (id, name, nim, email, password_hash, major, avatar_url, role) VALUES
   (1, 'Fiqri Ridho F', '202410370110167', 'mahasiswa@kampuscare.ac.id',
-   '$2b$10$ywHFJ4U1JGUR7Wygf1Nbx.Qp.3tg0kzcJ9hvJmnM/MnxWUMPcESdS',
-   'Teknik Informatika', 'https://krs.umm.ac.id/Poto/2024/202410370110167.JPG', 'mahasiswa');
+   '$2b$10$3SEb9tTbvEd90Y9ik/ZchOrinKUdcVhyB7fQ/44eoQXyN/qjmIBF2',
+   'Teknik Informatika', 'https://krs.umm.ac.id/Poto/2024/202410370110167.JPG', 'mahasiswa'),
+  (2, 'Admin KampusCare', NULL, 'admin@kampuscare.ac.id',
+   '$2b$10$A3KCFU.iG2q9m5kN3VPpi.UiVeRhLc84VSvfq.UQIRJk3xqSk8M.a',
+   'Administrator', 'https://ui-avatars.com/api/?name=Admin&background=4F46E5&color=fff', 'admin');
 
 INSERT INTO classrooms (id, name, building, location, status, capacity, facilities) VALUES
   (1, 'Lab Komputer 1', 'Gedung A', 'Gedung A Lt. 1', 'kosong', 40,
