@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { PORT } = require('./src/config/env');
 const authRoutes = require('./src/routes/auth');
 const roomsRoutes = require('./src/routes/rooms');
@@ -31,6 +32,10 @@ app.use(
 );
 
 app.use(express.json());
+
+// Static serving untuk foto laporan (tidak perlu auth — UUID acak sudah cukup aman)
+// URL format: http://<host>:3000/uploads/reports/<filename>
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Public health check
 app.get('/api/health', (req, res) => {
